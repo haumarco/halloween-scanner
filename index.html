@@ -88,10 +88,9 @@
                 </div>
                 <span class="font-bold text-xl tracking-wide">SBB CFF FFS</span>
             </div>
-            <!-- Halloween touch, turns into the printer status dot -->
-            <div class="text-white opacity-80 flex items-center gap-2">
-                <i id="printer-dot" class="fa-solid fa-print text-sm opacity-40"></i>
-                <i class="fa-solid fa-spider text-xl"></i>
+            <!-- Printer status -->
+            <div class="text-white opacity-80 flex items-center">
+                <i id="printer-dot" class="fa-solid fa-print text-lg opacity-40"></i>
             </div>
         </header>
 
@@ -118,10 +117,7 @@
                         <div class="laser-line"></div>
                     </div>
 
-                    <img id="last-photo" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl opacity-60">
-                    <!-- Center Icon -->
-                    <div id="awaiting" class="text-white/20 flex flex-col items-center">
-                        <i class="fa-solid fa-ghost text-6xl mb-4"></i>
+                    <div class="text-white/20 flex flex-col items-center">
                         <span class="text-sm tracking-widest uppercase font-medium">Warte auf Billett</span>
                     </div>
                 </div>
@@ -187,77 +183,7 @@
 
                 <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
 
-                    <!-- Ticket Card 1 -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-lg text-sbb-dark">Dracula</span>
-                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Gültig</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
-                            <i class="fa-solid fa-train text-gray-400"></i>
-                            <span class="font-medium">Lugano HB</span>
-                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
-                            <span class="font-medium">Transylvania</span>
-                        </div>
-                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
-                            <span>31. Okt, 23:59</span>
-                            <span>Klasse: 1. (Sarg)</span>
-                        </div>
-                    </div>
-
-                    <!-- Ticket Card 2 -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-lg text-sbb-dark">Frankensteins Monster</span>
-                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Gültig</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
-                            <i class="fa-solid fa-train text-gray-400"></i>
-                            <span class="font-medium">Zürich HB</span>
-                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
-                            <span class="font-medium">Unterwelt</span>
-                        </div>
-                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
-                            <span>31. Okt, 18:30</span>
-                            <span>Klasse: Fracht</span>
-                        </div>
-                    </div>
-
-                    <!-- Ticket Card 3 -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 opacity-75">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-lg text-sbb-dark">Casper</span>
-                            <span class="bg-red-100 text-sbb-red text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Abgelaufen</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
-                            <i class="fa-solid fa-train text-gray-400"></i>
-                            <span class="font-medium">Bern</span>
-                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
-                            <span class="font-medium">Gruseltal</span>
-                        </div>
-                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
-                            <span>31. Okt, 14:15</span>
-                            <span>Halbtax (Geist)</span>
-                        </div>
-                    </div>
-
-                    <!-- Ticket Card 4 -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 opacity-75">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-lg text-sbb-dark">Kopfloser Reiter</span>
-                            <span class="bg-red-100 text-sbb-red text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Abgelaufen</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
-                            <i class="fa-solid fa-train text-gray-400"></i>
-                            <span class="font-medium">Genf</span>
-                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
-                            <span class="font-medium">Sleepy Hollow</span>
-                        </div>
-                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
-                            <span>30. Okt, 00:00</span>
-                            <span>Klasse: 2.</span>
-                        </div>
-                    </div>
+                    <p id="history-empty" class="text-center text-gray-400 text-sm py-8">Noch keine Kontrollen</p>
 
                     <!-- Bottom spacer -->
                     <div class="h-6 w-full"></div>
@@ -512,6 +438,7 @@
                 body.querySelector('span').textContent = name;
                 card.append(img, body);
                 $('history-list').prepend(card);
+                $('history-empty').classList.add('hidden');
             }
 
             // ---------- Camera flow ----------
@@ -543,10 +470,6 @@
             });
 
             async function onTicketPhoto(photo) {
-                $('last-photo').src = photo.url;
-                $('last-photo').classList.remove('hidden');
-                $('awaiting').classList.add('hidden');
-
                 showOverlay({ bg: 'bg-sbb-dark/90', icon: 'fa-spinner fa-spin', title: 'Prüfe…' });
                 await sleep(1500);
 
