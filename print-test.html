@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T02 Drucktest</title>
+<style>
+  body { font-family: sans-serif; padding: 16px; background: #111; color: #eee; }
+  button { font-size: 22px; padding: 16px 24px; margin: 8px 0; width: 100%; border-radius: 12px; border: 0; background: #eb0000; color: #fff; }
+  canvas { background: #fff; width: 100%; image-rendering: pixelated; margin-top: 12px; }
+  #log { white-space: pre-wrap; font-family: monospace; font-size: 13px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<h2>T02 Drucktest</h2>
+<button id="connect">1. Verbinden</button>
+<button id="print">2. Hello World drucken</button>
+<canvas id="canvas" width="384" height="120"></canvas>
+<div id="log"></div>
+<script>
+  const WIDTH = 384;          // T02 print head: 384 dots = 48 bytes per line
+  const CHUNK = 128;          // bytes per BLE write, tune if prints get garbled
+  const DELAY = 20;           // ms between writes
+
+  const logEl = document.getElementById('log');
+  const log = msg => { logEl.textContent += msg + '\n'; };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  let characteristic = null;
+
+  log('navigator.bluetooth: ' + (navigator.bluetooth ? 'ja' : 'NEIN'));
+  log('secure context: ' + window.isSecureContext);
+
+  // Draw the sample
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, WIDTH, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Hello World', WIDTH / 2, canvas.height / 2);
+
+  document.getElementById('connect').addEventListener('click', async () => {
+    try {
+      log('Suche Drucker…');
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [0xff00],
+      });
+      log('Gewählt: ' + (device.name || device.id));
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(0xff00);
+      characteristic = await service.getCharacteristic(0xff02);
+      log('Verbunden, FF02 bereit.');
+    } catch (e) {
+      log('Fehler: ' + e);
+    }
+  });
+
+  // Canvas -> ESC/POS raster (GS v 0), 1 bit per dot, MSB = leftmost, 1 = black
+  function buildJob() {
+    const h = canvas.height;
+    const px = ctx.getImageData(0, 0, WIDTH, h).data;
+    const bytesPerLine = WIDTH / 8;
+    const out = [0x1b, 0x40, 0x1b, 0x61, 0x01];   // ESC @ (init), ESC a 1 (center)
+    for (let start = 0; start < h; start += 255) {
+      const lines = Math.min(255, h - start);
+      out.push(0x1d, 0x76, 0x30, 0x00, bytesPerLine & 0xff, bytesPerLine >> 8, lines & 0xff, lines >> 8);
+      for (let y = start; y < start + lines; y++) {
+        for (let xb = 0; xb < bytesPerLine; xb++) {
+          let byte = 0;
+          for (let bit = 0; bit < 8; bit++) {
+            const i = (y * WIDTH + xb * 8 + bit) * 4;
+            const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+            if (lum < 128) byte |= 0x80 >> bit;
+          }
+          out.push(byte);
+        }
+      }
+    }
+    out.push(0x1b, 0x64, 0x04);                   // ESC d 4 (feed)
+    return new Uint8Array(out);
+  }
+
+  document.getElementById('print').addEventListener('click', async () => {
+    if (!characteristic) { log('Erst verbinden.'); return; }
+    try {
+      const job = buildJob();
+      log('Sende ' + job.length + ' Bytes…');
+      for (let i = 0; i < job.length; i += CHUNK) {
+        const part = job.slice(i, i + CHUNK);
+        if (characteristic.writeValueWithoutResponse) {
+          await characteristic.writeValueWithoutResponse(part);
+        } else {
+          await characteristic.writeValue(part);
+        }
+        await sleep(DELAY);
+      }
+      log('Fertig gesendet.');
+    } catch (e) {
+      log('Fehler: ' + e);
+    }
+  });
+</script>
+</body>
+</html>

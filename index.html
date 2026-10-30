@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SBB Scanner - Halloween-Ausgabe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sbb: {
+                            red: '#eb0000',
+                            dark: '#2d3238',
+                            gray: '#f6f6f6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles for the scanner reticle and animation */
+        .scanner-corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: white;
+            border-style: solid;
+        }
+        .top-left { top: 0; left: 0; border-width: 4px 0 0 4px; border-top-left-radius: 8px; }
+        .top-right { top: 0; right: 0; border-width: 4px 4px 0 0; border-top-right-radius: 8px; }
+        .bottom-left { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-bottom-left-radius: 8px; }
+        .bottom-right { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-bottom-right-radius: 8px; }
+        
+        @keyframes scan-line {
+            0% { top: 5%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 95%; opacity: 0; }
+        }
+        .laser-line {
+            position: absolute;
+            left: 5%;
+            width: 90%;
+            height: 2px;
+            background-color: #eb0000;
+            box-shadow: 0 0 10px 2px rgba(235, 0, 0, 0.5);
+            animation: scan-line 2.5s infinite linear;
+        }
+        
+        /* Hide scrollbar for cleaner mobile look */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* Disable text selection */
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-800 h-screen w-screen flex justify-center overflow-hidden font-sans no-select">
+
+    <!-- Mobile Device Frame -->
+    <div class="w-full max-w-[420px] h-full bg-sbb-gray flex flex-col relative shadow-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-sbb-red text-white flex items-center justify-between px-4 py-3 shadow-md z-20 shrink-0 pt-safe-top">
+            <div class="flex items-center gap-3">
+                <!-- Fake SBB Logo elements -->
+                <div class="bg-white text-sbb-red font-black px-2 py-0.5 text-lg tracking-tighter shadow-sm flex items-center">
+                    <i class="fa-solid fa-chevron-left text-xs mr-1"></i>
+                    <i class="fa-solid fa-plus text-xs mx-1"></i>
+                    <i class="fa-solid fa-chevron-right text-xs ml-1"></i>
+                </div>
+                <span class="font-bold text-xl tracking-wide">SBB CFF FFS</span>
+            </div>
+            <!-- Halloween touch -->
+            <div class="text-white opacity-80">
+                <i class="fa-solid fa-spider text-xl"></i>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 relative overflow-hidden no-scrollbar bg-white">
+            
+            <!-- SCAN TAB (Default Active) -->
+            <div id="tab-scan" class="h-full flex flex-col items-center justify-start pt-8 pb-4 px-4 fade-in">
+                
+                <h2 class="text-sbb-dark font-bold text-2xl mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-qrcode text-sbb-red"></i> Billett scannen
+                </h2>
+                
+                <!-- Viewfinder -->
+                <div class="w-full max-w-[320px] aspect-[3/4] bg-black/90 rounded-2xl relative shadow-inner flex items-center justify-center p-6 mt-2">
+                    <!-- Reticle Corners -->
+                    <div class="absolute inset-4">
+                        <div class="scanner-corner top-left"></div>
+                        <div class="scanner-corner top-right"></div>
+                        <div class="scanner-corner bottom-left"></div>
+                        <div class="scanner-corner bottom-right"></div>
+                        
+                        <!-- Animated Scanning Laser -->
+                        <div class="laser-line"></div>
+                    </div>
+                    
+                    <img id="last-photo" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl opacity-60">
+                    <!-- Center Icon -->
+                    <div id="awaiting" class="text-white/20 flex flex-col items-center">
+                        <i class="fa-solid fa-ghost text-6xl mb-4"></i>
+                        <span class="text-sm tracking-widest uppercase font-medium">Warte auf Billett</span>
+                    </div>
+                </div>
+
+                <!-- Big Scan Button -->
+                <button id="scan-btn" class="mt-auto mb-6 w-[85%] bg-sbb-red hover:bg-red-700 text-white text-xl font-bold py-4 rounded-xl shadow-[0_8px_0_rgb(180,0,0)] active:shadow-[0_2px_0_rgb(180,0,0)] active:translate-y-[6px] transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-camera"></i> JETZT SCANNEN
+                </button>
+                <input id="cam" type="file" accept="image/*" capture="environment" class="hidden">
+            </div>
+
+            <!-- HISTORY TAB (Hidden by default) -->
+            <div id="tab-history" class="hidden h-full flex flex-col bg-sbb-gray">
+                <div class="bg-white px-4 py-4 border-b border-gray-200 shadow-sm shrink-0">
+                    <h2 class="text-sbb-dark font-bold text-2xl">Letzte Kontrollen</h2>
+                    <p class="text-gray-500 text-sm">Schicht vom 31. Oktober</p>
+                </div>
+                
+                <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+                    
+                    <!-- Ticket Card 1 -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-lg text-sbb-dark">Dracula</span>
+                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Gültig</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
+                            <i class="fa-solid fa-train text-gray-400"></i>
+                            <span class="font-medium">Lugano HB</span>
+                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
+                            <span class="font-medium">Transylvania</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
+                            <span>31. Okt, 23:59</span>
+                            <span>Klasse: 1. (Sarg)</span>
+                        </div>
+                    </div>
+
+                    <!-- Ticket Card 2 -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-lg text-sbb-dark">Frankensteins Monster</span>
+                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Gültig</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
+                            <i class="fa-solid fa-train text-gray-400"></i>
+                            <span class="font-medium">Zürich HB</span>
+                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
+                            <span class="font-medium">Unterwelt</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
+                            <span>31. Okt, 18:30</span>
+                            <span>Klasse: Fracht</span>
+                        </div>
+                    </div>
+
+                    <!-- Ticket Card 3 -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 opacity-75">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-lg text-sbb-dark">Casper</span>
+                            <span class="bg-red-100 text-sbb-red text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Abgelaufen</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
+                            <i class="fa-solid fa-train text-gray-400"></i>
+                            <span class="font-medium">Bern</span>
+                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
+                            <span class="font-medium">Gruseltal</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
+                            <span>31. Okt, 14:15</span>
+                            <span>Halbtax (Geist)</span>
+                        </div>
+                    </div>
+
+                    <!-- Ticket Card 4 -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 opacity-75">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-lg text-sbb-dark">Kopfloser Reiter</span>
+                            <span class="bg-red-100 text-sbb-red text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Abgelaufen</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-600 mb-3 gap-2">
+                            <i class="fa-solid fa-train text-gray-400"></i>
+                            <span class="font-medium">Genf</span>
+                            <i class="fa-solid fa-arrow-right text-sbb-red mx-1"></i>
+                            <span class="font-medium">Sleepy Hollow</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
+                            <span>30. Okt, 00:00</span>
+                            <span>Klasse: 2.</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom spacer -->
+                    <div class="h-6 w-full"></div>
+
+                </div>
+            </div>
+            
+            <!-- Fake Scanning Overlay (Triggered by button) -->
+            <div id="scan-overlay" class="absolute inset-0 hidden flex-col items-center justify-center z-50 transition-opacity px-6 text-center">
+                <i id="overlay-icon" class="fa-solid text-white text-7xl mb-4"></i>
+                <h3 id="overlay-title" class="text-white text-3xl font-bold"></h3>
+                <p id="overlay-sub" class="text-white/80 mt-2"></p>
+                <a id="save-btn" class="hidden mt-8 bg-white text-sbb-dark font-bold px-6 py-3 rounded-xl shadow"><i class="fa-solid fa-download mr-2"></i>Foto speichern</a>
+                <p id="overlay-hint" class="hidden text-white/60 text-xs mt-6">Tippen zum Fortfahren</p>
+            </div>
+
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bg-white border-t border-gray-200 px-6 py-3 pb-safe-bottom shrink-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+            <div class="flex justify-between items-center">
+                
+                <button class="nav-btn flex flex-col items-center text-gray-400 hover:text-gray-600 w-16" data-target="home">
+                    <i class="fa-solid fa-house text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium uppercase tracking-wider">Start</span>
+                </button>
+                
+                <button class="nav-btn flex flex-col items-center text-sbb-red w-16" data-target="scan">
+                    <i class="fa-solid fa-qrcode text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-wider">Scan</span>
+                </button>
+                
+                <button class="nav-btn flex flex-col items-center text-gray-400 hover:text-gray-600 w-16" data-target="history">
+                    <i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium uppercase tracking-wider">Verlauf</span>
+                </button>
+
+            </div>
+        </nav>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = {
+                'scan': document.getElementById('tab-scan'),
+                'history': document.getElementById('tab-history')
+            };
+            
+            const navButtons = document.querySelectorAll('.nav-btn');
+            
+            // Tab switching logic
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const target = btn.getAttribute('data-target');
+                    
+                    // Home button does nothing in this mock, just stays on scan or returns to scan
+                    const actualTarget = target === 'home' ? 'scan' : target;
+
+                    // Update UI Views
+                    Object.values(tabs).forEach(tab => {
+                        if (tab) tab.classList.add('hidden');
+                    });
+                    if (tabs[actualTarget]) {
+                        tabs[actualTarget].classList.remove('hidden');
+                    }
+
+                    // Update Nav Button States
+                    navButtons.forEach(nav => {
+                        nav.classList.remove('text-sbb-red');
+                        nav.classList.add('text-gray-400');
+                        nav.querySelector('span').classList.remove('font-bold');
+                        nav.querySelector('span').classList.add('font-medium');
+                        
+                        if (nav.getAttribute('data-target') === target) {
+                            nav.classList.add('text-sbb-red');
+                            nav.classList.remove('text-gray-400');
+                            nav.querySelector('span').classList.add('font-bold');
+                            nav.querySelector('span').classList.remove('font-medium');
+                        }
+                    });
+                });
+            });
+
+            const scanBtn = document.getElementById('scan-btn');
+            const cam = document.getElementById('cam');
+            const overlay = document.getElementById('scan-overlay');
+            const icon = document.getElementById('overlay-icon');
+            const title = document.getElementById('overlay-title');
+            const sub = document.getElementById('overlay-sub');
+            const saveBtn = document.getElementById('save-btn');
+            const hint = document.getElementById('overlay-hint');
+            const lastPhoto = document.getElementById('last-photo');
+            const historyList = document.getElementById('history-list');
+
+            const passengers = ['Werwolf', 'Zombie', 'Hexe', 'Mumie', 'Vampir', 'Geist', 'Skelett', 'Kürbiskopf'];
+            const invalidReasons = ['Kein gültiges Billett', 'Billett abgelaufen', 'Falsche Dimension', 'Halbtax gilt nicht für Untote', 'Billett verflucht'];
+            const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+            let busy = false;
+            let forceValid = true;
+
+            scanBtn.addEventListener('click', e => {
+                const rect = scanBtn.getBoundingClientRect();
+                forceValid = e.clientX - rect.left < rect.width / 2;
+                cam.click();
+            });
+
+            cam.addEventListener('change', () => {
+                const file = cam.files[0];
+                cam.value = '';
+                if (!file) return;
+                busy = true;
+                const url = URL.createObjectURL(file);
+                lastPhoto.src = url;
+                lastPhoto.classList.remove('hidden');
+                document.getElementById('awaiting').classList.add('hidden');
+
+                // "Checking" state
+                overlay.className = overlay.className.replace(/bg-\S+/g, '') + ' bg-sbb-dark/90';
+                icon.className = 'fa-solid fa-spinner fa-spin text-white text-7xl mb-4';
+                title.textContent = 'Prüfe…';
+                sub.textContent = '';
+                saveBtn.classList.add('hidden');
+                hint.classList.add('hidden');
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+
+                setTimeout(() => {
+                    const ok = forceValid;
+                    const who = pick(passengers);
+                    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    overlay.className = overlay.className.replace(/bg-\S+/g, '') + (ok ? ' bg-green-600/95' : ' bg-sbb-red/95');
+                    icon.className = 'fa-solid text-white text-7xl mb-4 animate-bounce ' + (ok ? 'fa-circle-check' : 'fa-circle-xmark');
+                    title.textContent = ok ? 'Billett gültig' : 'Billett ungültig';
+                    sub.textContent = ok ? 'Fahrgast: ' + who : pick(invalidReasons);
+                    saveBtn.href = url;
+                    saveBtn.download = 'ticket-' + Date.now() + '.jpg';
+                    saveBtn.classList.remove('hidden');
+                    hint.classList.remove('hidden');
+                    navigator.vibrate?.(ok ? 150 : [100, 80, 100, 80, 100]);
+                    busy = false;
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex gap-3';
+                    card.innerHTML = `
+                        <img src="${url}" class="w-16 h-16 object-cover rounded-lg shrink-0">
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="font-bold text-lg text-sbb-dark">${ok ? who : 'Unbekannt'}</span>
+                                <span class="${ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-sbb-red'} text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">${ok ? 'Gültig' : 'Ungültig'}</span>
+                            </div>
+                            <div class="text-xs text-gray-400">31. Okt, ${time}</div>
+                        </div>`;
+                    historyList.prepend(card);
+                }, 1500);
+            });
+
+            overlay.addEventListener('click', e => {
+                if (busy || e.target.closest('#save-btn')) return;
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            });
+        });
+    </script>
+</body>
+</html>
