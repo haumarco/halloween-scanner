@@ -13,7 +13,8 @@
 </head>
 <body>
 <h2>T02 Drucktest</h2>
-<button id="connect">1. Verbinden</button>
+<button id="connect">1. Verbinden (T02)</button>
+<button id="connect-all">1b. Verbinden (alle Geräte)</button>
 <button id="print">2. Hello World drucken</button>
 <canvas id="canvas" width="384" height="120"></canvas>
 <div id="log"></div>
@@ -41,22 +42,33 @@
   ctx.textBaseline = 'middle';
   ctx.fillText('Hello World', WIDTH / 2, canvas.height / 2);
 
-  document.getElementById('connect').addEventListener('click', async () => {
+  const SERVICE = '0000ff00-0000-1000-8000-00805f9b34fb';
+  const WRITE_CHAR = '0000ff02-0000-1000-8000-00805f9b34fb';
+  const describe = e => [typeof e, e && e.name, e && e.message, JSON.stringify(e)].join(' | ');
+
+  async function connect(options) {
     try {
-      log('Suche Drucker…');
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: [0xff00],
-      });
+      log('Suche Drucker… ' + JSON.stringify(options));
+      const device = await navigator.bluetooth.requestDevice(options);
       log('Gewählt: ' + (device.name || device.id));
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(0xff00);
-      characteristic = await service.getCharacteristic(0xff02);
+      log('GATT verbunden.');
+      const service = await server.getPrimaryService(SERVICE);
+      characteristic = await service.getCharacteristic(WRITE_CHAR);
       log('Verbunden, FF02 bereit.');
     } catch (e) {
-      log('Fehler: ' + e);
+      log('Fehler: ' + describe(e));
     }
-  });
+  }
+
+  document.getElementById('connect').addEventListener('click', () => connect({
+    filters: [{ namePrefix: 'T02' }, { services: [SERVICE] }],
+    optionalServices: [SERVICE],
+  }));
+  document.getElementById('connect-all').addEventListener('click', () => connect({
+    acceptAllDevices: true,
+    optionalServices: [SERVICE],
+  }));
 
   // Canvas -> ESC/POS raster (GS v 0), 1 bit per dot, MSB = leftmost, 1 = black
   function buildJob() {
@@ -99,7 +111,7 @@
       }
       log('Fertig gesendet.');
     } catch (e) {
-      log('Fehler: ' + e);
+      log('Fehler: ' + describe(e));
     }
   });
 </script>
