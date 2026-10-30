@@ -155,13 +155,6 @@
                     <summary class="text-sm font-bold text-sbb-dark">Einstellungen</summary>
                     <div class="mt-3 space-y-4 text-sm text-sbb-dark">
                         <label class="block">
-                            <div class="mb-1">Format</div>
-                            <select id="receipt-format" class="w-full p-2 border border-gray-300 rounded">
-                                <option value="long">Lang (ca. 9 cm)</option>
-                                <option value="short">Kurz (ca. 5 cm)</option>
-                            </select>
-                        </label>
-                        <label class="block">
                             <div class="flex justify-between"><span>Helligkeit</span><span id="brightness-val"></span></div>
                             <input id="brightness" type="range" min="-80" max="80" step="5" class="w-full accent-sbb-red">
                         </label>
@@ -179,6 +172,13 @@
                         </label>
                         <button id="reset-image-btn" class="w-full bg-gray-100 font-bold py-2 rounded-lg">Bild zurücksetzen</button>
                         <hr class="border-gray-200">
+                        <label class="block">
+                            <div class="mb-1">Format</div>
+                            <select id="receipt-format" class="w-full p-2 border border-gray-300 rounded">
+                                <option value="long">Lang (ca. 9 cm)</option>
+                                <option value="short">Kurz (ca. 5 cm)</option>
+                            </select>
+                        </label>
                         <label class="block">
                             <div class="mb-1">Grund</div>
                             <div class="flex gap-2">
