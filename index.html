@@ -37,7 +37,7 @@
         .top-right { top: 0; right: 0; border-width: 4px 4px 0 0; border-top-right-radius: 8px; }
         .bottom-left { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-bottom-left-radius: 8px; }
         .bottom-right { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-bottom-right-radius: 8px; }
-        
+
         @keyframes scan-line {
             0% { top: 5%; opacity: 0; }
             10% { opacity: 1; }
@@ -53,7 +53,7 @@
             box-shadow: 0 0 10px 2px rgba(235, 0, 0, 0.5);
             animation: scan-line 2.5s infinite linear;
         }
-        
+
         /* Hide scrollbar for cleaner mobile look */
         ::-webkit-scrollbar {
             display: none;
@@ -62,7 +62,7 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
         }
-        
+
         /* Disable text selection */
         .no-select {
             -webkit-user-select: none;
@@ -76,7 +76,7 @@
 
     <!-- Mobile Device Frame -->
     <div class="w-full max-w-[420px] h-full bg-sbb-gray flex flex-col relative shadow-2xl overflow-hidden">
-        
+
         <!-- Header -->
         <header class="bg-sbb-red text-white flex items-center justify-between px-4 py-3 shadow-md z-20 shrink-0 pt-safe-top">
             <div class="flex items-center gap-3">
@@ -88,22 +88,23 @@
                 </div>
                 <span class="font-bold text-xl tracking-wide">SBB CFF FFS</span>
             </div>
-            <!-- Halloween touch -->
-            <div class="text-white opacity-80">
+            <!-- Halloween touch, turns into the printer status dot -->
+            <div class="text-white opacity-80 flex items-center gap-2">
+                <i id="printer-dot" class="fa-solid fa-print text-sm opacity-40"></i>
                 <i class="fa-solid fa-spider text-xl"></i>
             </div>
         </header>
 
         <!-- Main Content Area -->
         <main class="flex-1 relative overflow-hidden no-scrollbar bg-white">
-            
+
             <!-- SCAN TAB (Default Active) -->
             <div id="tab-scan" class="h-full flex flex-col items-center justify-start pt-8 pb-4 px-4 fade-in">
-                
+
                 <h2 class="text-sbb-dark font-bold text-2xl mb-6 flex items-center gap-2">
                     <i class="fa-solid fa-qrcode text-sbb-red"></i> Billett scannen
                 </h2>
-                
+
                 <!-- Viewfinder -->
                 <div class="w-full max-w-[320px] aspect-[3/4] bg-black/90 rounded-2xl relative shadow-inner flex items-center justify-center p-6 mt-2">
                     <!-- Reticle Corners -->
@@ -112,11 +113,11 @@
                         <div class="scanner-corner top-right"></div>
                         <div class="scanner-corner bottom-left"></div>
                         <div class="scanner-corner bottom-right"></div>
-                        
+
                         <!-- Animated Scanning Laser -->
                         <div class="laser-line"></div>
                     </div>
-                    
+
                     <img id="last-photo" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl opacity-60">
                     <!-- Center Icon -->
                     <div id="awaiting" class="text-white/20 flex flex-col items-center">
@@ -125,22 +126,108 @@
                     </div>
                 </div>
 
-                <!-- Big Scan Button -->
+                <!-- Big Scan Button: left half = valid, right half = fine flow -->
                 <button id="scan-btn" class="mt-auto mb-6 w-[85%] bg-sbb-red hover:bg-red-700 text-white text-xl font-bold py-4 rounded-xl shadow-[0_8px_0_rgb(180,0,0)] active:shadow-[0_2px_0_rgb(180,0,0)] active:translate-y-[6px] transition-all flex items-center justify-center gap-3">
                     <i class="fa-solid fa-camera"></i> JETZT SCANNEN
                 </button>
                 <input id="cam" type="file" accept="image/*" capture="environment" class="hidden">
             </div>
 
-            <!-- HISTORY TAB (Hidden by default) -->
+            <!-- FINE / RECEIPT TAB -->
+            <div id="tab-fine" class="hidden h-full flex flex-col items-center bg-gray-200 overflow-y-auto no-scrollbar pb-6 pt-4 px-4">
+
+                <h2 class="text-sbb-dark font-bold text-xl mb-4 w-full text-center shrink-0">Bussenquittung</h2>
+
+                <!-- Passenger Name Input -->
+                <div class="w-full max-w-[320px] mb-4 shrink-0">
+                    <label for="passenger-name" class="block text-sm font-bold text-sbb-dark mb-1">Name des Fahrgastes:</label>
+                    <input type="text" id="passenger-name" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:border-sbb-red focus:ring-1 focus:ring-sbb-red font-sans" placeholder="Name eingeben...">
+                </div>
+
+                <!-- Thermal Receipt Container (Compact Version) -->
+                <div class="bg-[#f9f9f9] text-black w-full max-w-[320px] p-2 shadow-lg flex flex-col font-mono text-[13px] leading-tight shrink-0">
+
+                    <!-- Header & Logo (Combined) -->
+                    <div class="flex items-center justify-between border-b-2 border-black pb-1.5 mb-1.5">
+                        <div class="bg-black text-white px-1.5 py-0.5 font-bold text-[11px] tracking-widest flex items-center shrink-0">
+                            <span class="mr-1 tracking-tighter text-[9px]">&lt;+&gt;</span> SBB
+                        </div>
+                        <div class="font-bold uppercase text-xl text-right w-full ml-2 leading-none mt-1">
+                            ZUSCHLAG / BUSSE
+                        </div>
+                    </div>
+
+                    <!-- Details (Metadata Rows) -->
+                    <div class="mb-1.5 border-b-2 border-dashed border-black pb-1.5">
+                        <div class="text-center font-bold text-xl mb-2.5 uppercase leading-none">Sonderzug Simon 30</div>
+
+                        <div class="flex justify-between items-center text-xs mb-1.5">
+                            <div><span class="font-bold">ZEIT: </span><span id="receipt-time">--:--</span></div>
+                            <div id="receipt-passenger-row" class="hidden items-center justify-end">
+                                <span class="font-bold mr-1">FAHRGAST:</span>
+                                <span id="receipt-passenger-name" class="uppercase text-right truncate max-w-[120px]"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo (Square 1:1 Focal Point) -->
+                    <div class="w-full aspect-square border-2 border-dashed border-black mb-1.5 flex flex-col items-center justify-center p-1 text-center bg-gray-50 relative overflow-hidden">
+                        <img id="receipt-photo" class="hidden absolute inset-1 w-[calc(100%-8px)] h-[calc(100%-8px)] object-cover grayscale contrast-125">
+                        <i class="fa-solid fa-camera text-2xl mb-1 text-gray-300"></i>
+                        <span class="font-bold text-lg uppercase tracking-wider z-10">[ BEWEISFOTO ]</span>
+                    </div>
+
+                    <!-- Penalty & Reason -->
+                    <div class="mb-1.5 border-b-2 border-dashed border-black pb-1.5">
+                        <div class="text-xs mb-1.5">
+                            <span class="font-bold uppercase">GRUND:</span> Feiern ohne gültigen Fahrausweis
+                        </div>
+
+                        <div class="w-full font-bold uppercase text-sm bg-black text-white text-center py-1">
+                            BUSSE: 1 SHOT AN DER BAR
+                        </div>
+                    </div>
+
+                    <!-- Footer (Single Line Barcode & Conductor) -->
+                    <div class="flex justify-between items-end pt-0.5 pb-0.5">
+                        <!-- Fake Barcode (Compact left) -->
+                        <div class="w-24 flex flex-col items-start">
+                            <div class="w-full h-3 flex items-stretch justify-between gap-[1px]">
+                                <div class="w-1 bg-black"></div><div class="w-[2px] bg-black"></div><div class="w-[1px] bg-black"></div>
+                                <div class="w-[3px] bg-black"></div><div class="w-[1px] bg-black"></div><div class="w-2 bg-black"></div>
+                                <div class="w-[1px] bg-black"></div><div class="w-2 bg-black"></div><div class="w-[3px] bg-black"></div>
+                                <div class="w-[2px] bg-black"></div><div class="w-[1px] bg-black"></div><div class="w-1 bg-black"></div>
+                            </div>
+                            <div class="text-[7px] mt-[1px] tracking-widest font-bold">1031 SIMON</div>
+                        </div>
+
+                        <!-- Conductor (Single Line) -->
+                        <div class="text-[10px] font-bold uppercase text-right leading-none mb-0.5">
+                            Kond: Marco
+                        </div>
+                    </div>
+                </div>
+
+                <button id="print-btn" class="mt-6 mb-2 w-[320px] bg-black text-white text-lg font-bold py-4 shadow-md active:translate-y-[2px] transition-all flex items-center justify-center gap-3 shrink-0 uppercase tracking-wider">
+                    <i class="fa-solid fa-print"></i> Drucken
+                </button>
+                <p id="print-status" class="text-sm text-gray-600 mb-4 shrink-0"></p>
+
+                <details class="w-full max-w-[320px] shrink-0">
+                    <summary class="text-sm text-gray-500">Druckbild anzeigen</summary>
+                    <canvas id="print-preview" class="w-full bg-white mt-2" style="image-rendering: pixelated"></canvas>
+                </details>
+            </div>
+
+            <!-- HISTORY TAB -->
             <div id="tab-history" class="hidden h-full flex flex-col bg-sbb-gray">
                 <div class="bg-white px-4 py-4 border-b border-gray-200 shadow-sm shrink-0">
                     <h2 class="text-sbb-dark font-bold text-2xl">Letzte Kontrollen</h2>
                     <p class="text-gray-500 text-sm">Schicht vom 31. Oktober</p>
                 </div>
-                
+
                 <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-                    
+
                     <!-- Ticket Card 1 -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                         <div class="flex justify-between items-start mb-2">
@@ -212,41 +299,86 @@
                             <span>Klasse: 2.</span>
                         </div>
                     </div>
-                    
+
                     <!-- Bottom spacer -->
                     <div class="h-6 w-full"></div>
 
                 </div>
             </div>
-            
-            <!-- Fake Scanning Overlay (Triggered by button) -->
+
+            <!-- SETTINGS TAB -->
+            <div id="tab-settings" class="hidden h-full flex flex-col bg-sbb-gray overflow-y-auto no-scrollbar">
+                <div class="bg-white px-4 py-4 border-b border-gray-200 shadow-sm shrink-0">
+                    <h2 class="text-sbb-dark font-bold text-2xl">Optionen</h2>
+                    <p class="text-gray-500 text-sm">Nur für Kondukteure</p>
+                </div>
+
+                <div class="p-4 space-y-3">
+                    <!-- Printer -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-bold text-lg text-sbb-dark"><i class="fa-solid fa-print mr-2 text-sbb-red"></i>Drucker</span>
+                            <span id="printer-status" class="bg-gray-100 text-gray-500 text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">Getrennt</span>
+                        </div>
+                        <button id="connect-btn" class="w-full bg-sbb-red text-white font-bold py-3 rounded-lg mb-2">Drucker verbinden</button>
+                        <button id="test-print-btn" class="w-full bg-gray-100 text-sbb-dark font-bold py-3 rounded-lg">Testdruck (leere Busse)</button>
+                        <p class="text-xs text-gray-400 mt-2">In der Liste den Eintrag „T02“ wählen.</p>
+                    </div>
+
+                    <!-- Shortcuts -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <span class="block font-bold text-lg text-sbb-dark mb-3"><i class="fa-solid fa-forward mr-2 text-sbb-red"></i>Abkürzungen</span>
+                        <button id="skip-to-id-btn" class="w-full bg-gray-100 text-sbb-dark font-bold py-3 rounded-lg mb-2">Direkt zur Identitätsprüfung</button>
+                        <button id="skip-to-fine-btn" class="w-full bg-gray-100 text-sbb-dark font-bold py-3 rounded-lg">Busse öffnen</button>
+                    </div>
+
+                    <!-- Photos -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-bold text-lg text-sbb-dark"><i class="fa-solid fa-images mr-2 text-sbb-red"></i>Fotos</span>
+                            <span id="photo-count" class="text-sm text-gray-500">0</span>
+                        </div>
+                        <button id="save-all-btn" class="w-full bg-sbb-red text-white font-bold py-3 rounded-lg mb-2">Alle Fotos speichern</button>
+                        <p class="text-xs text-gray-400 mb-3">Einzelnes Foto antippen zum Speichern.</p>
+                        <div id="photo-grid" class="grid grid-cols-3 gap-2"></div>
+                        <button id="clear-photos-btn" class="w-full text-sbb-red text-sm font-bold py-3 mt-3">Alle Fotos löschen</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlay for check / result steps -->
             <div id="scan-overlay" class="absolute inset-0 hidden flex-col items-center justify-center z-50 transition-opacity px-6 text-center">
                 <i id="overlay-icon" class="fa-solid text-white text-7xl mb-4"></i>
                 <h3 id="overlay-title" class="text-white text-3xl font-bold"></h3>
                 <p id="overlay-sub" class="text-white/80 mt-2"></p>
-                <a id="save-btn" class="hidden mt-8 bg-white text-sbb-dark font-bold px-6 py-3 rounded-xl shadow"><i class="fa-solid fa-download mr-2"></i>Foto speichern</a>
+                <button id="overlay-action" class="hidden mt-8 bg-white text-sbb-dark text-lg font-bold px-6 py-4 rounded-xl shadow"></button>
                 <p id="overlay-hint" class="hidden text-white/60 text-xs mt-6">Tippen zum Fortfahren</p>
             </div>
 
         </main>
 
         <!-- Bottom Navigation -->
-        <nav class="bg-white border-t border-gray-200 px-6 py-3 pb-safe-bottom shrink-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <nav class="bg-white border-t border-gray-200 px-4 py-3 pb-safe-bottom shrink-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             <div class="flex justify-between items-center">
-                
-                <button class="nav-btn flex flex-col items-center text-gray-400 hover:text-gray-600 w-16" data-target="home">
-                    <i class="fa-solid fa-house text-xl mb-1"></i>
-                    <span class="text-[10px] font-medium uppercase tracking-wider">Start</span>
-                </button>
-                
+
                 <button class="nav-btn flex flex-col items-center text-sbb-red w-16" data-target="scan">
                     <i class="fa-solid fa-qrcode text-xl mb-1"></i>
                     <span class="text-[10px] font-bold uppercase tracking-wider">Scan</span>
                 </button>
-                
+
+                <button class="nav-btn flex flex-col items-center text-gray-400 hover:text-gray-600 w-16" data-target="fine">
+                    <i class="fa-solid fa-receipt text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium uppercase tracking-wider">Busse</span>
+                </button>
+
                 <button class="nav-btn flex flex-col items-center text-gray-400 hover:text-gray-600 w-16" data-target="history">
                     <i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i>
                     <span class="text-[10px] font-medium uppercase tracking-wider">Verlauf</span>
+                </button>
+
+                <button class="nav-btn flex flex-col items-center text-gray-400 hover:text-gray-600 w-16" data-target="settings">
+                    <i class="fa-solid fa-gear text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium uppercase tracking-wider">Optionen</span>
                 </button>
 
             </div>
@@ -256,123 +388,557 @@
     <!-- Application Logic -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const $ = id => document.getElementById(id);
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+            const hhmm = () => new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+
+            // ---------- Tabs ----------
             const tabs = {
-                'scan': document.getElementById('tab-scan'),
-                'history': document.getElementById('tab-history')
+                scan: $('tab-scan'),
+                fine: $('tab-fine'),
+                history: $('tab-history'),
+                settings: $('tab-settings'),
             };
-            
             const navButtons = document.querySelectorAll('.nav-btn');
-            
-            // Tab switching logic
-            navButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const target = btn.getAttribute('data-target');
-                    
-                    // Home button does nothing in this mock, just stays on scan or returns to scan
-                    const actualTarget = target === 'home' ? 'scan' : target;
 
-                    // Update UI Views
-                    Object.values(tabs).forEach(tab => {
-                        if (tab) tab.classList.add('hidden');
-                    });
-                    if (tabs[actualTarget]) {
-                        tabs[actualTarget].classList.remove('hidden');
-                    }
-
-                    // Update Nav Button States
-                    navButtons.forEach(nav => {
-                        nav.classList.remove('text-sbb-red');
-                        nav.classList.add('text-gray-400');
-                        nav.querySelector('span').classList.remove('font-bold');
-                        nav.querySelector('span').classList.add('font-medium');
-                        
-                        if (nav.getAttribute('data-target') === target) {
-                            nav.classList.add('text-sbb-red');
-                            nav.classList.remove('text-gray-400');
-                            nav.querySelector('span').classList.add('font-bold');
-                            nav.querySelector('span').classList.remove('font-medium');
-                        }
-                    });
+            function showTab(target) {
+                Object.values(tabs).forEach(tab => tab.classList.add('hidden'));
+                tabs[target].classList.remove('hidden');
+                navButtons.forEach(nav => {
+                    const active = nav.dataset.target === target;
+                    nav.classList.toggle('text-sbb-red', active);
+                    nav.classList.toggle('text-gray-400', !active);
+                    nav.querySelector('span').classList.toggle('font-bold', active);
+                    nav.querySelector('span').classList.toggle('font-medium', !active);
                 });
+            }
+            navButtons.forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.target)));
+
+            // ---------- Photo storage (IndexedDB, survives reloads) ----------
+            const dbReady = new Promise((resolve, reject) => {
+                const req = indexedDB.open('sbb-scanner', 1);
+                req.onupgradeneeded = () => req.result.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            const store = mode => dbReady.then(db => db.transaction('photos', mode).objectStore('photos'));
+            const promisify = req => new Promise((resolve, reject) => {
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
             });
 
-            const scanBtn = document.getElementById('scan-btn');
-            const cam = document.getElementById('cam');
-            const overlay = document.getElementById('scan-overlay');
-            const icon = document.getElementById('overlay-icon');
-            const title = document.getElementById('overlay-title');
-            const sub = document.getElementById('overlay-sub');
-            const saveBtn = document.getElementById('save-btn');
-            const hint = document.getElementById('overlay-hint');
-            const lastPhoto = document.getElementById('last-photo');
-            const historyList = document.getElementById('history-list');
+            const photos = [];   // { id, blob, kind, time, url }
+
+            // Saving runs in the background so a slow or broken IndexedDB never blocks the scan flow
+            function addPhoto(blob, kind) {
+                const photo = { blob, kind, time: Date.now() };
+                store('readwrite')
+                    .then(s => promisify(s.add({ blob, kind, time: photo.time })))
+                    .then(id => { photo.id = id; })
+                    .catch(e => console.warn('Foto nicht gespeichert', e));
+                photo.url = URL.createObjectURL(blob);
+                photos.push(photo);
+                renderGallery();
+                return photo;
+            }
+
+            async function loadPhotos() {
+                try {
+                    const saved = await promisify((await store('readonly')).getAll());
+                    saved.forEach(p => photos.push({ ...p, url: URL.createObjectURL(p.blob) }));
+                } catch (e) {
+                    console.warn('Fotos nicht geladen', e);
+                }
+                renderGallery();
+            }
+
+            function fileName(photo) {
+                const d = new Date(photo.time);
+                const stamp = d.toISOString().slice(0, 19).replace(/[-:T]/g, '');
+                return `${photo.kind}-${stamp}.jpg`;
+            }
+
+            // Share sheet ("Bild sichern" puts it in Photos); fall back to a download
+            async function savePhotos(list) {
+                if (!list.length) return;
+                const files = list.map(p => new File([p.blob], fileName(p), { type: p.blob.type || 'image/jpeg' }));
+                if (navigator.canShare && navigator.canShare({ files })) {
+                    try {
+                        await navigator.share({ files });
+                        return;
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;
+                    }
+                }
+                if (list.length > 1) {
+                    alert('Teilen geht in diesem Browser nicht. Fotos einzeln antippen.');
+                    return;
+                }
+                const a = document.createElement('a');
+                a.href = list[0].url;
+                a.download = fileName(list[0]);
+                a.click();
+            }
+
+            function renderGallery() {
+                $('photo-count').textContent = photos.length;
+                const grid = $('photo-grid');
+                grid.innerHTML = '';
+                [...photos].reverse().forEach(p => {
+                    const img = document.createElement('img');
+                    img.src = p.url;
+                    img.className = 'w-full aspect-square object-cover rounded-lg';
+                    img.addEventListener('click', () => savePhotos([p]));
+                    grid.appendChild(img);
+                });
+            }
+
+            $('save-all-btn').addEventListener('click', () => savePhotos(photos));
+            $('clear-photos-btn').addEventListener('click', async () => {
+                if (!confirm('Alle Fotos auf diesem Gerät löschen?')) return;
+                try { (await store('readwrite')).clear(); } catch (e) {}
+                photos.forEach(p => URL.revokeObjectURL(p.url));
+                photos.length = 0;
+                renderGallery();
+            });
+
+            loadPhotos();
+
+            // ---------- Overlay ----------
+            const overlay = $('scan-overlay');
+            let overlayAction = null;
+            let overlayDismissable = false;
+
+            function showOverlay({ bg, icon, title, sub = '', action = null, dismissable = false }) {
+                overlay.className = 'absolute inset-0 flex flex-col items-center justify-center z-50 transition-opacity px-6 text-center ' + bg;
+                $('overlay-icon').className = 'fa-solid text-white text-7xl mb-4 ' + icon;
+                $('overlay-title').textContent = title;
+                $('overlay-sub').textContent = sub;
+                overlayAction = action;
+                $('overlay-action').classList.toggle('hidden', !action);
+                if (action) $('overlay-action').textContent = action.label;
+                overlayDismissable = dismissable;
+                $('overlay-hint').classList.toggle('hidden', !dismissable);
+            }
+
+            function hideOverlay() {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+
+            $('overlay-action').addEventListener('click', e => {
+                e.stopPropagation();
+                if (overlayAction) overlayAction.fn();
+            });
+            overlay.addEventListener('click', () => {
+                if (overlayDismissable) hideOverlay();
+            });
+
+            // ---------- History ----------
+            function addHistory(ok, name, thumbUrl) {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex gap-3';
+                const img = document.createElement('img');
+                img.src = thumbUrl;
+                img.className = 'w-16 h-16 object-cover rounded-lg shrink-0';
+                const body = document.createElement('div');
+                body.className = 'flex-1';
+                body.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-lg text-sbb-dark"></span>
+                        <span class="${ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-sbb-red'} text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">${ok ? 'Gültig' : 'Busse'}</span>
+                    </div>
+                    <div class="text-xs text-gray-400">31. Okt, ${hhmm()}</div>`;
+                body.querySelector('span').textContent = name;
+                card.append(img, body);
+                $('history-list').prepend(card);
+            }
+
+            // ---------- Camera flow ----------
+            // ticket photo -> (valid | identity check) -> face photo -> invalid -> fine
+            const cam = $('cam');
+            let captureStep = 'ticket';
+            let forceValid = false;
 
             const passengers = ['Werwolf', 'Zombie', 'Hexe', 'Mumie', 'Vampir', 'Geist', 'Skelett', 'Kürbiskopf'];
-            const invalidReasons = ['Kein gültiges Billett', 'Billett abgelaufen', 'Falsche Dimension', 'Halbtax gilt nicht für Untote', 'Billett verflucht'];
-            const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-            let busy = false;
-            let forceValid = true;
 
-            scanBtn.addEventListener('click', e => {
-                const rect = scanBtn.getBoundingClientRect();
-                forceValid = e.clientX - rect.left < rect.width / 2;
+            function capture(step) {
+                captureStep = step;
                 cam.click();
+            }
+
+            $('scan-btn').addEventListener('click', e => {
+                const rect = $('scan-btn').getBoundingClientRect();
+                forceValid = e.clientX - rect.left < rect.width / 2;
+                capture('ticket');
             });
 
-            cam.addEventListener('change', () => {
+            cam.addEventListener('change', async () => {
                 const file = cam.files[0];
                 cam.value = '';
                 if (!file) return;
-                busy = true;
-                const url = URL.createObjectURL(file);
-                lastPhoto.src = url;
-                lastPhoto.classList.remove('hidden');
-                document.getElementById('awaiting').classList.add('hidden');
-
-                // "Checking" state
-                overlay.className = overlay.className.replace(/bg-\S+/g, '') + ' bg-sbb-dark/90';
-                icon.className = 'fa-solid fa-spinner fa-spin text-white text-7xl mb-4';
-                title.textContent = 'Prüfe…';
-                sub.textContent = '';
-                saveBtn.classList.add('hidden');
-                hint.classList.add('hidden');
-                overlay.classList.remove('hidden');
-                overlay.classList.add('flex');
-
-                setTimeout(() => {
-                    const ok = forceValid;
-                    const who = pick(passengers);
-                    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    overlay.className = overlay.className.replace(/bg-\S+/g, '') + (ok ? ' bg-green-600/95' : ' bg-sbb-red/95');
-                    icon.className = 'fa-solid text-white text-7xl mb-4 animate-bounce ' + (ok ? 'fa-circle-check' : 'fa-circle-xmark');
-                    title.textContent = ok ? 'Billett gültig' : 'Billett ungültig';
-                    sub.textContent = ok ? 'Fahrgast: ' + who : pick(invalidReasons);
-                    saveBtn.href = url;
-                    saveBtn.download = 'ticket-' + Date.now() + '.jpg';
-                    saveBtn.classList.remove('hidden');
-                    hint.classList.remove('hidden');
-                    navigator.vibrate?.(ok ? 150 : [100, 80, 100, 80, 100]);
-                    busy = false;
-
-                    const card = document.createElement('div');
-                    card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex gap-3';
-                    card.innerHTML = `
-                        <img src="${url}" class="w-16 h-16 object-cover rounded-lg shrink-0">
-                        <div class="flex-1">
-                            <div class="flex justify-between items-start mb-1">
-                                <span class="font-bold text-lg text-sbb-dark">${ok ? who : 'Unbekannt'}</span>
-                                <span class="${ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-sbb-red'} text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">${ok ? 'Gültig' : 'Ungültig'}</span>
-                            </div>
-                            <div class="text-xs text-gray-400">31. Okt, ${time}</div>
-                        </div>`;
-                    historyList.prepend(card);
-                }, 1500);
+                const photo = addPhoto(file, captureStep === 'ticket' ? 'billett' : 'gesicht');
+                if (captureStep === 'ticket') onTicketPhoto(photo);
+                else onFacePhoto(photo);
             });
 
-            overlay.addEventListener('click', e => {
-                if (busy || e.target.closest('#save-btn')) return;
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
+            async function onTicketPhoto(photo) {
+                $('last-photo').src = photo.url;
+                $('last-photo').classList.remove('hidden');
+                $('awaiting').classList.add('hidden');
+
+                showOverlay({ bg: 'bg-sbb-dark/90', icon: 'fa-spinner fa-spin', title: 'Prüfe…' });
+                await sleep(1500);
+
+                if (forceValid) {
+                    const who = pick(passengers);
+                    showOverlay({ bg: 'bg-green-600/95', icon: 'fa-circle-check animate-bounce', title: 'Billett gültig', sub: 'Fahrgast: ' + who, dismissable: true });
+                    navigator.vibrate?.(150);
+                    addHistory(true, who, photo.url);
+                    return;
+                }
+
+                showOverlay({
+                    bg: 'bg-amber-500/95',
+                    icon: 'fa-id-card animate-pulse',
+                    title: 'Identitätsprüfung nötig',
+                    sub: 'Bitte Gesicht des Fahrgastes fotografieren',
+                    action: { label: 'Foto aufnehmen', fn: () => capture('face') },
+                });
+                navigator.vibrate?.([100, 80, 100]);
+            }
+
+            async function onFacePhoto(photo) {
+                showOverlay({ bg: 'bg-sbb-dark/90', icon: 'fa-spinner fa-spin', title: 'Abgleich…', sub: 'Datenbank der Untoten' });
+                await sleep(1800);
+                showOverlay({
+                    bg: 'bg-sbb-red/95',
+                    icon: 'fa-circle-xmark animate-bounce',
+                    title: 'Billett ungültig',
+                    sub: 'Zuschlag fällig!',
+                    action: { label: 'Busse anzeigen', fn: () => { hideOverlay(); openFine(photo); } },
+                });
+                navigator.vibrate?.([100, 80, 100, 80, 100]);
+                addHistory(false, 'Party-Gast', photo.url);
+            }
+
+            // ---------- Fine ----------
+            let finePhoto = null;
+            let fineTime = '--:--';
+
+            function openFine(photo) {
+                finePhoto = photo;
+                fineTime = hhmm();
+                $('receipt-time').textContent = fineTime;
+                $('receipt-photo').src = photo.url;
+                $('receipt-photo').classList.remove('hidden');
+                $('passenger-name').value = '';
+                updatePassenger();
+                $('print-status').textContent = '';
+                showTab('fine');
+                renderPreview();
+            }
+
+            function updatePassenger() {
+                const name = $('passenger-name').value.trim();
+                $('receipt-passenger-row').classList.toggle('hidden', !name);
+                $('receipt-passenger-row').classList.toggle('flex', !!name);
+                $('receipt-passenger-name').textContent = name;
+            }
+            $('passenger-name').addEventListener('input', () => { updatePassenger(); renderPreview(); });
+
+            $('skip-to-id-btn').addEventListener('click', () => capture('face'));
+            $('skip-to-fine-btn').addEventListener('click', () => {
+                fineTime = hhmm();
+                $('receipt-time').textContent = fineTime;
+                showTab('fine');
+                renderPreview();
+            });
+
+            // ---------- Receipt rendering (384 dots wide, 1 bit) ----------
+            const W = 384;
+            const MONO = 'ui-monospace, Menlo, "Courier New", monospace';
+
+            function loadImage(url) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
+
+            function fitFont(ctx, text, weight, size, maxWidth) {
+                while (size > 8) {
+                    ctx.font = `${weight} ${size}px ${MONO}`;
+                    if (ctx.measureText(text).width <= maxWidth) break;
+                    size--;
+                }
+            }
+
+            function dashedLine(ctx, y, width = 3) {
+                ctx.fillStyle = '#000';
+                for (let x = 8; x < W - 8; x += 12) ctx.fillRect(x, y, 7, width);
+            }
+
+            // Grayscale + Floyd-Steinberg dither, so photos print with shades
+            function ditherInto(ctx, img, x, y, size) {
+                const off = document.createElement('canvas');
+                off.width = off.height = size;
+                const octx = off.getContext('2d');
+                const side = Math.min(img.naturalWidth, img.naturalHeight);
+                octx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+                const data = octx.getImageData(0, 0, size, size);
+                const px = data.data;
+                const g = new Float32Array(size * size);
+                for (let i = 0; i < g.length; i++) {
+                    const lum = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+                    g[i] = (lum - 128) * 1.25 + 128 + 15;   // a bit more contrast and light, thermal prints dark
+                }
+                for (let yy = 0; yy < size; yy++) {
+                    for (let xx = 0; xx < size; xx++) {
+                        const i = yy * size + xx;
+                        const v = g[i] < 128 ? 0 : 255;
+                        const err = g[i] - v;
+                        g[i] = v;
+                        if (xx + 1 < size) g[i + 1] += err * 7 / 16;
+                        if (yy + 1 < size) {
+                            if (xx > 0) g[i + size - 1] += err * 3 / 16;
+                            g[i + size] += err * 5 / 16;
+                            if (xx + 1 < size) g[i + size + 1] += err * 1 / 16;
+                        }
+                    }
+                }
+                for (let i = 0; i < g.length; i++) {
+                    px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = g[i];
+                    px[i * 4 + 3] = 255;
+                }
+                ctx.putImageData(data, x, y);
+            }
+
+            async function drawReceipt(photo, name, time) {
+                const tall = document.createElement('canvas');
+                tall.width = W;
+                tall.height = 1200;
+                const ctx = tall.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, W, tall.height);
+                ctx.fillStyle = '#000';
+                ctx.textBaseline = 'top';
+                let y = 8;
+
+                // Header: logo box + title
+                ctx.fillRect(8, y, 92, 34);
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold 20px ${MONO}`;
+                ctx.textAlign = 'center';
+                ctx.fillText('<+>SBB', 54, y + 7);
+                ctx.fillStyle = '#000';
+                ctx.textAlign = 'right';
+                fitFont(ctx, 'ZUSCHLAG / BUSSE', 'bold', 26, W - 8 - 108);
+                ctx.fillText('ZUSCHLAG / BUSSE', W - 8, y + 5);
+                y += 42;
+                ctx.fillRect(8, y, W - 16, 4);
+                y += 12;
+
+                // Train + time / passenger
+                ctx.textAlign = 'center';
+                fitFont(ctx, 'SONDERZUG SIMON 30', 'bold', 30, W - 16);
+                ctx.fillText('SONDERZUG SIMON 30', W / 2, y);
+                y += 40;
+                ctx.textAlign = 'left';
+                ctx.font = `bold 18px ${MONO}`;
+                ctx.fillText('ZEIT: ' + time, 8, y);
+                if (name) {
+                    ctx.textAlign = 'right';
+                    const label = 'FAHRGAST: ' + name.toUpperCase();
+                    fitFont(ctx, label, 'bold', 18, 220);
+                    ctx.fillText(label, W - 8, y);
+                }
+                y += 28;
+                dashedLine(ctx, y);
+                y += 11;
+
+                // Photo square with dashed frame
+                const box = W - 16;
+                for (let i = 0; i < box; i += 12) {
+                    ctx.fillRect(8 + i, y, 7, 3);
+                    ctx.fillRect(8 + i, y + box - 3, 7, 3);
+                    ctx.fillRect(8, y + i, 3, 7);
+                    ctx.fillRect(W - 11, y + i, 3, 7);
+                }
+                if (photo) {
+                    ditherInto(ctx, await loadImage(photo.url), 14, y + 6, box - 12);
+                } else {
+                    ctx.textAlign = 'center';
+                    ctx.font = `bold 24px ${MONO}`;
+                    ctx.fillText('[ BEWEISFOTO ]', W / 2, y + box / 2 - 12);
+                }
+                y += box + 10;
+
+                // Reason + fine bar
+                ctx.textAlign = 'left';
+                ctx.font = `bold 18px ${MONO}`;
+                ctx.fillText('GRUND:', 8, y);
+                ctx.font = `18px ${MONO}`;
+                const reason = 'Feiern ohne gültigen Fahrausweis';
+                let line = '';
+                let lx = 8 + ctx.measureText('GRUND: ').width;
+                for (const word of reason.split(' ')) {
+                    const test = line ? line + ' ' + word : word;
+                    if (lx + ctx.measureText(test).width > W - 8) {
+                        ctx.fillText(line, lx, y);
+                        y += 22;
+                        lx = 8;
+                        line = word;
+                    } else {
+                        line = test;
+                    }
+                }
+                ctx.fillText(line, lx, y);
+                y += 30;
+                ctx.fillRect(8, y, W - 16, 38);
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                fitFont(ctx, 'BUSSE: 1 SHOT AN DER BAR', 'bold', 22, W - 32);
+                ctx.fillText('BUSSE: 1 SHOT AN DER BAR', W / 2, y + 9);
+                ctx.fillStyle = '#000';
+                y += 48;
+                dashedLine(ctx, y);
+                y += 12;
+
+                // Footer: fake barcode + conductor
+                const bars = [4, 2, 1, 3, 1, 8, 1, 8, 3, 2, 1, 4, 2, 1, 3, 2];
+                let bx = 8;
+                bars.forEach((w, i) => {
+                    if (i % 2 === 0) ctx.fillRect(bx, y, w * 2, 24);
+                    bx += w * 2 + 2;
+                });
+                ctx.textAlign = 'left';
+                ctx.font = `bold 12px ${MONO}`;
+                ctx.fillText('1031 SIMON', 8, y + 28);
+                ctx.textAlign = 'right';
+                ctx.font = `bold 18px ${MONO}`;
+                ctx.fillText('KOND: MARCO', W - 8, y + 20);
+                y += 46;
+
+                const out = document.createElement('canvas');
+                out.width = W;
+                out.height = y;
+                out.getContext('2d').drawImage(tall, 0, 0);
+                return out;
+            }
+
+            async function renderPreview() {
+                const canvas = await drawReceipt(finePhoto, $('passenger-name').value.trim(), fineTime);
+                const preview = $('print-preview');
+                preview.width = canvas.width;
+                preview.height = canvas.height;
+                preview.getContext('2d').drawImage(canvas, 0, 0);
+                return canvas;
+            }
+
+            // ---------- Printer (Phomemo T02 over BLE, ESC/POS raster) ----------
+            const SERVICE = '0000ff00-0000-1000-8000-00805f9b34fb';
+            const WRITE_CHAR = '0000ff02-0000-1000-8000-00805f9b34fb';
+            const CHUNK = 128;   // bytes per BLE write
+            const DELAY = 20;    // ms between writes
+            let printerDevice = null;
+            let printerChar = null;
+
+            function setPrinterStatus(state) {
+                const labels = { off: 'Getrennt', busy: 'Verbinde…', on: 'Verbunden', printing: 'Druckt…' };
+                const colors = { off: 'bg-gray-100 text-gray-500', busy: 'bg-amber-100 text-amber-700', on: 'bg-green-100 text-green-700', printing: 'bg-green-100 text-green-700' };
+                $('printer-status').className = colors[state] + ' text-xs font-bold px-2 py-1 rounded uppercase tracking-wide';
+                $('printer-status').textContent = labels[state];
+                $('printer-dot').classList.toggle('opacity-40', state === 'off');
+            }
+
+            async function connectPrinter() {
+                if (printerChar && printerDevice?.gatt.connected) return printerChar;
+                setPrinterStatus('busy');
+                try {
+                    if (!printerDevice) {
+                        printerDevice = await navigator.bluetooth.requestDevice({
+                            acceptAllDevices: true,
+                            optionalServices: [SERVICE],
+                        });
+                        printerDevice.addEventListener('gattserverdisconnected', () => {
+                            printerChar = null;
+                            setPrinterStatus('off');
+                        });
+                    }
+                    const server = await printerDevice.gatt.connect();
+                    const service = await server.getPrimaryService(SERVICE);
+                    printerChar = await service.getCharacteristic(WRITE_CHAR);
+                    setPrinterStatus('on');
+                    return printerChar;
+                } catch (e) {
+                    printerDevice = null;
+                    printerChar = null;
+                    setPrinterStatus('off');
+                    throw e;
+                }
+            }
+
+            // Canvas -> ESC/POS: init, center, GS v 0 in blocks of <= 255 lines, feed
+            function buildJob(canvas) {
+                const h = canvas.height;
+                const px = canvas.getContext('2d').getImageData(0, 0, W, h).data;
+                const bytesPerLine = W / 8;
+                const out = [0x1b, 0x40, 0x1b, 0x61, 0x01];
+                for (let start = 0; start < h; start += 255) {
+                    const lines = Math.min(255, h - start);
+                    out.push(0x1d, 0x76, 0x30, 0x00, bytesPerLine & 0xff, bytesPerLine >> 8, lines & 0xff, lines >> 8);
+                    for (let yy = start; yy < start + lines; yy++) {
+                        for (let xb = 0; xb < bytesPerLine; xb++) {
+                            let byte = 0;
+                            for (let bit = 0; bit < 8; bit++) {
+                                const i = (yy * W + xb * 8 + bit) * 4;
+                                if (px[i] < 128) byte |= 0x80 >> bit;
+                            }
+                            out.push(byte);
+                        }
+                    }
+                }
+                out.push(0x1b, 0x64, 0x04);
+                return new Uint8Array(out);
+            }
+
+            // Connect first: the device picker only opens while the tap gesture is still fresh
+            async function printCanvas(makeCanvas, statusEl) {
+                const ch = await connectPrinter();
+                const job = buildJob(await makeCanvas());
+                setPrinterStatus('printing');
+                for (let i = 0; i < job.length; i += CHUNK) {
+                    const part = job.slice(i, i + CHUNK);
+                    if (ch.writeValueWithoutResponse) await ch.writeValueWithoutResponse(part);
+                    else await ch.writeValue(part);
+                    if (statusEl) statusEl.textContent = `Drucke… ${Math.round(100 * i / job.length)}%`;
+                    await sleep(DELAY);
+                }
+                setPrinterStatus('on');
+            }
+
+            async function printFine(photo, statusEl) {
+                try {
+                    statusEl.textContent = 'Verbinde mit Drucker…';
+                    await printCanvas(() => drawReceipt(photo, $('passenger-name').value.trim(), fineTime), statusEl);
+                    statusEl.textContent = 'Gedruckt.';
+                } catch (e) {
+                    statusEl.textContent = 'Fehler: ' + (e && (e.message || e.name) || e);
+                }
+            }
+
+            $('print-btn').addEventListener('click', () => printFine(finePhoto, $('print-status')));
+            $('connect-btn').addEventListener('click', () => connectPrinter().catch(e => alert('Verbinden fehlgeschlagen: ' + (e && (e.message || e.name) || e))));
+            $('test-print-btn').addEventListener('click', async () => {
+                try {
+                    await printCanvas(() => drawReceipt(null, '', hhmm()));
+                } catch (e) {
+                    alert('Druck fehlgeschlagen: ' + (e && (e.message || e.name) || e));
+                }
             });
         });
     </script>
