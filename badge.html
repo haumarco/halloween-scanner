@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Badge drucken</title>
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; max-width: 420px; margin: 0 auto; padding: 16px; background: #f6f6f6; color: #2d3238; }
+  h2 { margin-top: 0; }
+  label { display: block; font-weight: bold; font-size: 14px; margin-top: 12px; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; margin-top: 4px; }
+  button { width: 100%; font-size: 18px; font-weight: bold; padding: 14px; margin-top: 12px; border: 0; border-radius: 10px; background: #eb0000; color: #fff; }
+  button.secondary { background: #2d3238; }
+  canvas { display: block; width: 100%; background: #fff; margin-top: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.15); image-rendering: pixelated; }
+  #log { white-space: pre-wrap; font-family: monospace; font-size: 12px; margin-top: 12px; color: #555; }
+</style>
+</head>
+<body>
+<h2>Badge drucken</h2>
+
+<label>Name <input id="name" placeholder="Vorname Nachname"></label>
+<label>Funktion <input id="role" value="Billettkontrolleur"></label>
+
+<canvas id="canvas" width="384" height="100"></canvas>
+
+<button id="connect" class="secondary">Drucker wählen</button>
+<button id="print">Drucken</button>
+<div id="log"></div>
+
+<script>
+  const W = 384;              // T02 print head: 384 dots
+  const CHUNK = 128;          // bytes per BLE write
+  const DELAY = 20;           // ms between writes
+  const SERVICE = '0000ff00-0000-1000-8000-00805f9b34fb';
+  const WRITE_CHAR = '0000ff02-0000-1000-8000-00805f9b34fb';
+  const FONT = 'Helvetica, Arial, sans-serif';
+
+  const $ = id => document.getElementById(id);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const log = msg => { $('log').textContent += msg + '\n'; };
+  const errText = e => (e && (e.message || e.name)) || String(e);
+
+  if (!navigator.bluetooth) log('Kein Web Bluetooth in diesem Browser.');
+
+  // SBB-style symbol: black box, white bar with a short cross bar and outward chevrons
+  function drawSymbol(ctx, x, y, w, h) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#fff';
+    const cx = x + w / 2, cy = y + h / 2;
+    const t = h * 0.14;                 // bar thickness
+    const arm = w * 0.36;               // half length of the horizontal bar
+    ctx.fillRect(cx - arm, cy - t / 2, arm * 2, t);
+    ctx.fillRect(cx - t / 2, cy - h * 0.3, t, h * 0.6);
+    const chevron = dir => {
+      const tipX = cx + dir * (arm + t * 0.2);
+      const back = dir * h * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(tipX, cy);
+      ctx.lineTo(tipX - back, cy - h * 0.3);
+      ctx.lineTo(tipX - back - dir * t * 1.3, cy - h * 0.3);
+      ctx.lineTo(tipX - dir * t * 1.3, cy);
+      ctx.lineTo(tipX - back - dir * t * 1.3, cy + h * 0.3);
+      ctx.lineTo(tipX - back, cy + h * 0.3);
+      ctx.closePath();
+      ctx.fill();
+    };
+    chevron(-1);
+    chevron(1);
+    ctx.fillStyle = '#000';
+  }
+
+  function fitFont(ctx, text, weight, size, maxWidth) {
+    while (size > 10) {
+      ctx.font = `${weight} ${size}px ${FONT}`;
+      if (ctx.measureText(text).width <= maxWidth) break;
+      size--;
+    }
+    return size;
+  }
+
+  function drawBadge() {
+    const canvas = $('canvas');
+    canvas.height = 250;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, canvas.height);
+    ctx.fillStyle = '#000';
+    ctx.textBaseline = 'middle';
+
+    // Logo row: symbol + SBB CFF FFS
+    let y = 12;
+    drawSymbol(ctx, 8, y, 112, 72);
+    ctx.textAlign = 'left';
+    fitFont(ctx, 'SBB CFF FFS', 'bold', 40, W - 8 - 136);
+    ctx.fillText('SBB CFF FFS', 136, y + 38);
+    y += 72 + 16;
+    ctx.fillRect(8, y, W - 16, 4);
+    y += 20;
+
+    // Name and role
+    const name = $('name').value.trim();
+    const role = $('role').value.trim();
+    ctx.textAlign = 'center';
+    const nameSize = fitFont(ctx, name, 'bold', 40, W - 16);
+    ctx.fillText(name, W / 2, y + nameSize / 2);
+    y += nameSize + 12;
+    const roleSize = fitFont(ctx, role, 'normal', 30, W - 16);
+    ctx.fillText(role, W / 2, y + roleSize / 2);
+    y += roleSize + 16;
+
+    // Crop to content
+    const img = ctx.getImageData(0, 0, W, y);
+    canvas.height = y;
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // Typed values stay on this device, nothing personal lives in the page itself
+  ['name', 'role'].forEach(id => {
+    try {
+      const saved = localStorage.getItem('badge-' + id);
+      if (saved !== null) $(id).value = saved;
+    } catch (e) {}
+    $(id).addEventListener('input', () => {
+      try { localStorage.setItem('badge-' + id, $(id).value); } catch (e) {}
+      drawBadge();
+    });
+  });
+  drawBadge();
+
+  // ---------- Printer ----------
+  let device = null;
+  let characteristic = null;
+
+  async function connect() {
+    if (characteristic && device && device.gatt.connected) return characteristic;
+    if (!device) {
+      device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE] });
+      device.addEventListener('gattserverdisconnected', () => { characteristic = null; log('Drucker getrennt.'); });
+    }
+    const server = await device.gatt.connect();
+    characteristic = await (await server.getPrimaryService(SERVICE)).getCharacteristic(WRITE_CHAR);
+    log('Verbunden: ' + (device.name || device.id));
+    return characteristic;
+  }
+
+  // Canvas -> ESC/POS raster (GS v 0), 1 = black, MSB = leftmost dot
+  function buildJob(canvas) {
+    const h = canvas.height;
+    const px = canvas.getContext('2d').getImageData(0, 0, W, h).data;
+    const bytesPerLine = W / 8;
+    const out = [0x1b, 0x40, 0x1b, 0x61, 0x01];
+    for (let start = 0; start < h; start += 255) {
+      const lines = Math.min(255, h - start);
+      out.push(0x1d, 0x76, 0x30, 0x00, bytesPerLine & 0xff, bytesPerLine >> 8, lines & 0xff, lines >> 8);
+      for (let y = start; y < start + lines; y++) {
+        for (let xb = 0; xb < bytesPerLine; xb++) {
+          let byte = 0;
+          for (let bit = 0; bit < 8; bit++) {
+            if (px[(y * W + xb * 8 + bit) * 4] < 128) byte |= 0x80 >> bit;
+          }
+          out.push(byte);
+        }
+      }
+    }
+    out.push(0x1b, 0x64, 0x04);
+    return new Uint8Array(out);
+  }
+
+  $('connect').addEventListener('click', () => {
+    device = null;
+    connect().catch(e => { device = null; log('Fehler: ' + errText(e)); });
+  });
+
+  $('print').addEventListener('click', async () => {
+    try {
+      const ch = await connect();
+      const job = buildJob($('canvas'));
+      log('Drucke ' + job.length + ' Bytes…');
+      for (let i = 0; i < job.length; i += CHUNK) {
+        const part = job.slice(i, i + CHUNK);
+        if (ch.writeValueWithoutResponse) await ch.writeValueWithoutResponse(part);
+        else await ch.writeValue(part);
+        await sleep(DELAY);
+      }
+      log('Gedruckt.');
+    } catch (e) {
+      device = null;
+      log('Fehler: ' + errText(e));
+    }
+  });
+</script>
+</body>
+</html>
